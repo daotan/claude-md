@@ -80,7 +80,7 @@ wp db import backup.sql
 ## Code Conventions
 
 - PHP: follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/php/) — tabs for indentation, Yoda conditions.
-- Prefix all functions, hooks, classes, and options with a project slug (e.g., `mypfx_`) to avoid collisions.
+- Prefix all functions, hooks, classes, and options with a project slug (e.g., `bssfx_`) to avoid collisions.
 - Sanitize/escape all input and output: `sanitize_text_field()`, `esc_html()`, `esc_url()`, `wp_kses_post()`.
 - Use `wp_enqueue_scripts` / `wp_enqueue_style` — never hardcode `<script>` or `<link>` tags.
 - Nonces for all AJAX and form submissions.

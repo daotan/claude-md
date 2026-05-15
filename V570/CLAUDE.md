@@ -2,100 +2,95 @@
 
 ## What This Is
 
-Magento 2.4.7-p3 (Community Edition) e-commerce platform for a Spanish school supplies retailer. PHP 8.3, Hyva/McYadra custom frontend theme, Magestore POS system. Bilingual: `en_US` + `es_ES`.
+Magento 2.4.7-p3 CE e-commerce for a Spanish school supplies retailer. PHP 8.3, Hyva/McYadra theme (TailwindCSS + AlpineJS), Magestore POS. Bilingual: `en_US` + `es_ES`.
 
 ## Module Landscape
 
-124 enabled modules across 8 vendors — see `app/etc/config.php` for the full list.
+124 enabled modules — see `app/etc/config.php`. Custom code in `app/code/`:
 
-Custom code lives in `app/code/`:
+| Namespace   | Count | Purpose |
+|-------------|-------|---------|
+| `W2e`       | 11    | School-specific: BooksCart, DeliveryNote, CustomerChildren, SchoolShipping, NavSync |
+| `Bss`       | 10    | BSS customizations: Bizum payment, HyvaRma, Security, DataImport |
+| `Magestore` | 91+   | Full POS suite: inventory, fulfillment, gift vouchers, rewards, multi-payment |
+| `Hyva`      | 5     | Hyva compatibility bridges |
+| Others      | ~7    | Mageants CookieLaw, Oct8ne, Redsys payment |
 
-| Namespace | Count | Purpose |
-|-----------|-------|---------|
-| `W2e`     | 11    | School-specific features: BooksCart, DeliveryNote, CustomerChildren, SchoolShipping, NavSync, etc. |
-| `Bss`     | 10    | BSS Commerce customizations: Bizum payment, HyvaRma, Security, DataImport, etc. |
-| `Magestore` | 91+ | Full POS suite: inventory, fulfillment, gift vouchers, rewards, multi-payment terminals |
-| `Hyva`    | 5     | Hyva compatibility bridges for third-party modules |
-| Others    | ~7    | Mageants CookieLaw, Oct8ne, Redsys payment |
-
-Third-party Composer packages declared in `composer.json`. Patches in `patches/`.
+Third-party packages in `composer.json`. Patches in `patches/`.
 
 ## Tech Stack
 
-- **PHP**: 8.3 | **Magento**: 2.4.7-p3 CE
-- **Frontend**: Hyva 1.3.10 → custom theme `Hyva/McYadra` (TailwindCSS + AlpineJS)
-- **Search**: Elasticsearch
-- **Theme config**: `app/etc/hyva-themes.json`
-- **Auth for private repos**: `auth.json` (do not commit)
+- **PHP**: 8.3 | **Magento**: 2.4.7-p3 CE | **Search**: Elasticsearch
+- **Frontend**: Hyva 1.3.10 → theme `Hyva/McYadra` | config: `app/etc/hyva-themes.json`
+- **Auth**: `auth.json` — do not commit
 
 ## Key Commands
 
 ```bash
-# Magento CLI
-php bin/magento <command>
 php bin/magento cache:flush
-php bin/magento setup:di:compile
-php bin/magento setup:upgrade
-
-# Static asset deployment (always specify theme + locales)
+php bin/magento setup:di:compile          # after di.xml changes
+php bin/magento setup:upgrade             # after db_schema.xml changes
 php bin/magento setup:static:deploy -t Hyva/McYadra --no-parent --jobs=4 en_US es_ES -f
 
-# Hyva CSS compilation (TailwindCSS)
-bin/hyva.sh          # or: bin/css.sh
-
-# Deployment helpers
-bin/deploy_dev.sh    # dev environment
-bin/live_deploy.sh   # production
+bin/hyva.sh          # rebuild TailwindCSS (also: bin/css.sh)
+bin/deploy_dev.sh    # dev deploy
+bin/live_deploy.sh   # production deploy
 ```
 
-## Testing
+## Testing & Quality
 
 ```bash
-# Unit tests
 vendor/bin/phpunit dev/tests/unit/phpunit.xml.dist
-
-# Integration tests (requires DB)
 vendor/bin/phpunit dev/tests/integration/phpunit.xml.dist
-
-# Static analysis
 vendor/bin/phpcs --standard=dev/tests/static/framework/Magento/ruleset.xml app/code
 vendor/bin/phpmd app/code text dev/tests/static/testsuite/Magento/Test/Php/_files/phpmd/ruleset.xml
-
-# PHP CS Fixer
 vendor/bin/php-cs-fixer fix app/code --config=.php-cs-fixer.dist.php
-
-# Acceptance tests (MFTF)
-dev/tests/acceptance/
 ```
 
-Pre-commit validation is defined in `.bss-cli.yaml` — runs PHPCS (Magento + BSS standards), PHPMD, PHP Compatibility (8.2–8.3), PHP-CS-Fixer, and copy/paste detection.
-
-## CI/CD
-
-Jenkins pipeline (`Jenkinsfile`): Build → `composer install` → `setup:di:compile` → Validate (PR only) → Deploy.
-
-PR validation runs `.bss-cli.yaml` checks automatically. Fix all violations before merging.
+Pre-commit: `.bss-cli.yaml` — PHPCS (Magento + BSS), PHPMD, PHP Compat (8.2–8.3), PHP-CS-Fixer, CPD. CI (Jenkins) runs the same checks on every PR — fix all violations before merging.
 
 ## Code Conventions
 
-- Follow **Magento Coding Standard** (PHPCS ruleset: `dev/tests/static/framework/Magento/ruleset.xml`)
-- PHP style enforced by `.php-cs-fixer.dist.php` (PSR-2 + Magento extensions)
-- Target PHP 8.2–8.3 compatibility
-- No magic numbers (PHP Magic Number Detector is enabled)
-- New modules go under the appropriate namespace in `app/code/`; follow existing module structure
+- Magento Coding Standard (PHPCS ruleset above) + PSR-2 via `.php-cs-fixer.dist.php`
+- Target PHP 8.2–8.3 | no magic numbers
+- New modules: correct namespace in `app/code/`, follow existing module structure
+- Use **plugins** (around/before/after) or **preferences** — never rewrite vendor classes directly
+- No `ObjectManager::getInstance()` outside factories/proxies
 
 ## Environment
 
-- Local domain: `v570.test` (web), `v570-nav.test` (NavSync)
-- Docker config: `.denv.env` (project name: `v570`)
-- Runtime config: `app/etc/env.php` (DB credentials, cache, session — never commit changes)
-- Module enable/disable state: `app/etc/config.php` (commit this file)
+- Local: `v570.test` (web), `v570-nav.test` (NavSync) | Docker: `.denv.env` (project: `v570`)
+- `app/etc/env.php` — DB/cache/session credentials, never commit changes
+- `app/etc/config.php` — module enable/disable state, commit this file
+- `generated/` and `var/` — runtime artifacts, never commit
 
-## Gotchas
+## Development Workflow
 
-- After adding/modifying DI config (`di.xml`), run `setup:di:compile`.
-- After schema changes (`db_schema.xml`), run `setup:upgrade`.
-- Hyva theme changes need TailwindCSS rebuild — run `bin/hyva.sh` or `bin/css.sh`.
-- The Magestore POS suite is a large dependency; avoid modifying vendor files — use plugins/preferences instead.
-- `generated/` and `var/` are runtime artifacts — never commit them.
+1. Identify namespace: `W2e` (school features), `Bss` (BSS customizations), or extend existing.
+2. Extend via plugin/preference — no vendor edits.
+3. `di.xml` changed → `setup:di:compile` | `db_schema.xml` changed → `setup:upgrade` | Hyva/CSS changed → `bin/hyva.sh`.
+4. Run `.bss-cli.yaml` locally before pushing.
 
+## Self-test Checklist
+
+For any completed task, cover:
+
+1. **Happy path** — end-to-end: storefront + admin + POS where applicable.
+2. **Edge cases** — empty cart, out-of-stock, tier prices, guest vs logged-in, `en_US` vs `es_ES`.
+3. **Negative cases** — invalid input, missing ACL, payment failure (Bizum/Redsys).
+4. **Performance** — no N+1 queries; cache invalidated correctly; no unnecessary full reindex.
+5. **POS** — if touching inventory/orders/pricing, verify Magestore POS flows unaffected.
+6. **Hyva frontend** — AlpineJS reactivity works; no console errors; Tailwind classes not purged.
+7. **Regression** — SchoolShipping, DeliveryNote, NavSync, and other related modules still function.
+
+## Code Review Criteria
+
+For any code review, always check:
+
+1. **Correctness** — logic matches requirement; all branches handled.
+2. **Magento patterns** — DI/plugins/preferences used correctly; no raw `ObjectManager`.
+3. **Performance** — no queries in loops; collections/repositories used; cache tags declared.
+4. **Security** — ACL checks present; user input sanitized; no raw SQL injection risk.
+5. **Bilingual** — all user-facing strings in `__()`; no hardcoded Spanish/English text.
+6. **Standard** — passes `.bss-cli.yaml` (PHPCS, PHPMD, PHP-CS-Fixer).
+7. **Impact** — effect on Magestore POS, Hyva theme, other `W2e`/`Bss` modules.
